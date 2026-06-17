@@ -121,7 +121,7 @@ interface ClothesStore {
       categories: SortingCategory[]
       sortedBy: string
     }
-  ) => void
+  ) => { success: boolean; reason?: string }
 
   addCharity: (
     sortingId: string,
@@ -390,7 +390,30 @@ export const useClothesStore = create<ClothesStore>((set, get) => ({
   },
 
   confirmSorting: (appointmentId, data) => {
-    const categoriesWithDestination = data.categories.map((c) => ({
+    const apt = get().appointments.find((a) => a.id === appointmentId)
+    if (!apt) return { success: false, reason: '预约单不存在' }
+
+    const { categories } = data
+
+    for (const c of categories) {
+      if (c.weight < 0) return { success: false, reason: `${categoryLabels[c.category]}重量不能为负` }
+      if (c.bags < 0) return { success: false, reason: `${categoryLabels[c.category]}袋数不能为负` }
+    }
+
+    const donatableBags = categories.filter((c) => c.category !== 'damaged').reduce((s, c) => s + c.bags, 0)
+    const processableBags = categories.filter((c) => c.category === 'damaged').reduce((s, c) => s + c.bags, 0)
+    const totalBags = donatableBags + processableBags
+
+    if (donatableBags < 0) return { success: false, reason: '可捐赠袋数不能为负' }
+    if (processableBags < 0) return { success: false, reason: '需处理袋数不能为负' }
+    if (totalBags > apt.bagCount) {
+      return {
+        success: false,
+        reason: `分拣总袋数(${totalBags})超过预约原始袋数(${apt.bagCount})`,
+      }
+    }
+
+    const categoriesWithDestination = categories.map((c) => ({
       ...c,
       destinationRule: c.destinationRule || defaultCategoryDestination[c.category],
     }))
@@ -422,6 +445,8 @@ export const useClothesStore = create<ClothesStore>((set, get) => ({
           : a
       ),
     }))
+
+    return { success: true }
   },
 
   addCharity: (sortingId, data) => {

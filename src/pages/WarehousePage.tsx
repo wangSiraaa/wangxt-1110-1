@@ -86,6 +86,7 @@ export default function WarehousePage() {
   const [weight, setWeight] = useState(0)
   const [destinationRule, setDestinationRule] = useState<DestinationRule>('donate_mountain')
   const [successMsg, setSuccessMsg] = useState('')
+  const [sortingError, setSortingError] = useState('')
 
   const [reviewAptId, setReviewAptId] = useState<string | null>(null)
   const [reviewNotes, setReviewNotes] = useState('')
@@ -141,8 +142,45 @@ export default function WarehousePage() {
   }
 
   const handleConfirmSorting = (aptId: string) => {
-    if (sortingCategories.reduce((s, c) => s + c.weight, 0) <= 0) return
-    store.confirmSorting(aptId, { categories: sortingCategories, sortedBy })
+    setSortingError('')
+
+    const apt = store.appointments.find((a) => a.id === aptId)
+    if (!apt) return
+
+    for (const c of sortingCategories) {
+      if (c.bags < 0) {
+        setSortingError(`${categoryConfig[c.category].label}袋数不能为负`)
+        return
+      }
+      if (c.weight < 0) {
+        setSortingError(`${categoryConfig[c.category].label}重量不能为负`)
+        return
+      }
+    }
+
+    const donatableBags = sortingCategories.filter((c) => c.category !== 'damaged').reduce((s, c) => s + c.bags, 0)
+    const processableBags = sortingCategories.filter((c) => c.category === 'damaged').reduce((s, c) => s + c.bags, 0)
+    const totalBags = donatableBags + processableBags
+
+    if (donatableBags < 0) {
+      setSortingError('可捐赠袋数不能为负')
+      return
+    }
+    if (processableBags < 0) {
+      setSortingError('需处理袋数不能为负')
+      return
+    }
+    if (totalBags > apt.bagCount) {
+      setSortingError(`分拣总袋数(${totalBags})超过预约原始袋数(${apt.bagCount})，请调整各分类袋数`)
+      return
+    }
+
+    const result = store.confirmSorting(aptId, { categories: sortingCategories, sortedBy })
+    if (!result.success) {
+      setSortingError(result.reason || '分拣确认失败')
+      return
+    }
+
     setSortingAptId(null)
     setSortingCategories([])
     setSuccessMsg('分拣确认成功，已按类别记录去向规则')
@@ -374,6 +412,7 @@ export default function WarehousePage() {
                   onClick={(e) => {
                     e.stopPropagation()
                     setSortingAptId(apt.id)
+                    setSortingError('')
                     initSortingCategories(apt)
                   }}
                   className="btn-primary text-sm"
@@ -571,15 +610,42 @@ export default function WarehousePage() {
                             <span className="text-gray-500">可捐赠：</span>
                             <span className="font-display font-bold text-forest-600">
                               {sortingCategories.filter((c) => c.category !== 'damaged').reduce((s, c) => s + c.weight, 0).toFixed(1)} kg
+                              <span className="text-xs text-gray-400 ml-1">
+                                ({sortingCategories.filter((c) => c.category !== 'damaged').reduce((s, c) => s + c.bags, 0)}袋)
+                              </span>
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-sm font-body mt-1">
                             <span className="text-gray-500">需处理：</span>
                             <span className="font-display font-bold text-red-600">
                               {sortingCategories.filter((c) => c.category === 'damaged').reduce((s, c) => s + c.weight, 0).toFixed(1)} kg
+                              <span className="text-xs text-gray-400 ml-1">
+                                ({sortingCategories.filter((c) => c.category === 'damaged').reduce((s, c) => s + c.bags, 0)}袋)
+                              </span>
                             </span>
                           </div>
+                          <div className="flex items-center justify-between text-sm font-body mt-1 pt-1 border-t border-gray-200">
+                            <span className="text-gray-500">分拣总袋数 / 预约原始袋数：</span>
+                            {(() => {
+                              const totalBags = sortingCategories.reduce((s, c) => s + c.bags, 0)
+                              const apt = store.appointments.find((a) => a.id === sortingAptId)
+                              const origBags = apt?.bagCount ?? 0
+                              const exceeded = totalBags > origBags
+                              return (
+                                <span className={`font-display font-bold ${exceeded ? 'text-red-600' : 'text-charcoal'}`}>
+                                  {totalBags} / {origBags}
+                                  {exceeded && <span className="text-xs ml-1">⚠️ 超出</span>}
+                                </span>
+                              )
+                            })()}
+                          </div>
                         </div>
+
+                        {sortingError && (
+                          <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 font-body animate-fade-in">
+                            ⚠️ {sortingError}
+                          </div>
+                        )}
 
                         <div>
                           <label className="block text-sm text-gray-500 mb-1.5 font-body">分拣人</label>
