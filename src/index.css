@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 :root {
   font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -58,6 +58,10 @@ body {
     @apply badge bg-blue-100 text-blue-700;
   }
 
+  .badge-reviewing {
+    @apply badge bg-purple-100 text-purple-700;
+  }
+
   .badge-sorted {
     @apply badge bg-forest-100 text-forest-500;
   }
@@ -74,5 +78,17 @@ body {
 
   .section-title {
     @apply text-xl font-semibold text-charcoal font-body;
+  }
+
+  .tag-chip {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium;
+  }
+
+  .tracker-grid {
+    @apply grid grid-cols-2 md:grid-cols-4 gap-3;
+  }
+
+  .tracker-cell {
+    @apply bg-white rounded-xl p-4 border border-gray-100 shadow-sm;
   }
 }
