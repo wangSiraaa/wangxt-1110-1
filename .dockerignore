@@ -1,0 +1,5 @@
+.dockeringore
+node_modules
+dist
+.git
+.trae
